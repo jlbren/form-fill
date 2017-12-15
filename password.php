@@ -4,7 +4,7 @@
  */
 
 $hostname = 'localhost';
-$username = 'JUNIE';
+$username = 'jon.brenner';
 $dbname   = 'company';
 $password = 'password';
 

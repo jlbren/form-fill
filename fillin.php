@@ -16,12 +16,16 @@ include 'lib353pdo.php';
 include 'password.php';
 $dbname = 'forms';
 
-$form_id = 1;
+function submit_form($db, $textareas, $formid) {
+    $textvals = [];
+	foreach ($textareas as $node) {
+        $textval =  $node->getAttribute();	// use getAttribute() to retrieve string
+        array_push($textvals, $textval);
+    }
+    // insert text vals into text table 
 
-function submit_form($db) {
-	// extract employee names from the fields POSTed
 	print ("starting submit_form()<br>\n");
-      	$name= $_POST['name'];
+    $name= $_POST['name'];
 	$address =  $_POST['address'];
 	$position = $_POST['position'];
 	$previous = $_POST['previous'];
@@ -44,7 +48,9 @@ function submit_form($db) {
 	}
 
 	//$queryargs = array($address, "", $name, "", $position, $previous, "");
-	$queryargs = array(101,"test", "some test value");
+    //$queryargs = array(101,"test", "some test value");
+    $queryargs = array($formid, $name, sprintf("%s %s %s"$address, $position, $previous ));
+    
 
 	$ret = $stmt->execute($queryargs);
 
@@ -62,6 +68,7 @@ function submit_form($db) {
 main($hostname, $username, $dbname, $password);
 
 function main($hostname, $username, $dbname, $password) {
+    // TODO read from db instead
 	$form_id = 1;
 	// retrieve htmlstr
 	// get <form>
@@ -96,14 +103,14 @@ function main($hostname, $username, $dbname, $password) {
 		$node->appendChild( $dom->createTextNode($val)); 
 		// pld: use $node->childNodes[0]->textContent to retrieve [??]
 		// pld: maybe $node->firstChild->textContent is better (this is not a function!)
-        }
+    }
 	/* */
 	$htmlout =  $dom->saveHTML() ;			// generates html of entire document
         print "$htmlout";
 	//debug_to_console($_POST);
-	if ($_SERVER['REQUEST_METHOD'] == 'POST') {   // submit button pressed		
-		debug_to_console('got POST');
-		submit_form($db);
+	if ($_SERVER['REQUEST_METHOD'] == 'POST') {   // submit button pressed
+		debug_to_console('got POST'); // why is this going off on page load?
+		submit_form($db,  $textareas);
 	}
 }
 function debug_to_console( $data ) {

@@ -1,10 +1,10 @@
 <?php
 /*
- * In employees.php, we display the existing employee table 
+ * In employees.php, we display the existing employee table
  * and then provide a form for adding a new employee.
- * 
+ *
  * prepared statements are used!
- * filtering:  
+ * filtering:
  *	htmlspecialchars() for html filtering
  */
 
@@ -16,68 +16,83 @@ include 'lib353pdo.php';
 include 'password.php';
 $dbname = 'forms';
 
-function submit_form($db, $textareas, $formid) {
-    $textvals = [];
+function submit_form($db, $formid) {
+    /* NOT NEEDED - textareas get sent with POST
+        $textvals = [];
 	foreach ($textareas as $node) {
-        $textval =  $node->getAttribute();	// use getAttribute() to retrieve string
+        $textval =  $node->firstChild->nodeValue;
+        //print($textval);
         array_push($textvals, $textval);
-    }
-    // insert text vals into text table 
+    }*/
+    // insert text vals into text table
 
 	print ("starting submit_form()<br>\n");
     $name= $_POST['name'];
 	$address =  $_POST['address'];
 	$position = $_POST['position'];
 	$previous = $_POST['previous'];
-	// addr, intereset, name, oldjo, position, previous, references
-	//$insertion="insert into valuetable values (?,?,?,?,?)";
-	$insertion="insert into valuetable values (?,?,?)";
-
-	/*
-	$types = array('text', 'text', 'text', 'text', 'text');	// dept number
-	/* */
-
+    $references = $_POST['references'];
+    $oldjob = $_POST['oldjob'];
+    $interest = $_POST['interest'];
+    
+    /*
+    print(sprintf("Updated textvals:<br> %s<br>\n",
+          join("<br>",$textvals)));
+    print(sprintf("Updated fields:<br> %s %s %s %s<br>\n",
+                  $address, $name, $position, $previous));
+     */
+    $insertion="update valuetable set value = ? where fieldname = ? and
+                html_id = ?";
 	$stmt = $db->prepare($insertion);
 
 	if ($stmt == FALSE) {
 		print("failed to prepare statement: \"$insertion\"<p>\n");
 		$errarray = $db->errorInfo();
-		$errmsg = $errarray[2];  
-		print("<b>Prepare error: $errmsg</b><p>\n");	// error would live in $db
+		$errmsg = $errarray[2];
+		print("<b>Prepare error: $errmsg</b><p>\n");
 		die();
 	}
+    $query_namedArgs = array(['name', $name], ['address', $address],
+        ['position', $position], ['previous', $previous],
+        ['interest', $interest], ['references', $references],
+        ['oldjob', $oldjob]);
 
-	//$queryargs = array($address, "", $name, "", $position, $previous, "");
-    //$queryargs = array(101,"test", "some test value");
-    $queryargs = array($formid, $name, sprintf("%s %s %s"$address, $position, $previous ));
-    
+    foreach($query_namedArgs as $arg){
+        $queryargs = array($arg[1], $arg[0], (int)$formid);
+        debug_to_console($queryargs);
+    	$ret = $stmt->execute($queryargs);
+    	if ($ret == FALSE) {
+    		print("execution of query not successful: \"$insertion\"<p>\n");
+    		$errarray = $stmt->errorInfo();
+    		$errmsg = $errarray[2];
+    		print("<b>Execute error: $errmsg</b><p>\n");
+    		$fail=1;
+    	} else {
+    		print sprintf("%s was updated<p>", $arg[0]);
+    		$stmt->closeCursor();
+    	}
+    }
 
-	$ret = $stmt->execute($queryargs);
 
-	if ($ret == FALSE) {
-		print("execution of query not successful: \"$insertion\"<p>\n");
-		$errarray = $stmt->errorInfo();
-		$errmsg = $errarray[2];  
-		print("<b>Execute error: $errmsg</b><p>\n");
-		$fail=1;
-	} else {
-		print "record was inserted<p>";
-		$stmt->closeCursor();
-	}
 }
 main($hostname, $username, $dbname, $password);
 
 function main($hostname, $username, $dbname, $password) {
     // TODO read from db instead
 	$form_id = 1;
+
 	// retrieve htmlstr
 	// get <form>
 	// get list of <input> items
 	// for each input item, get its name, retrieve the value from the db, and set it in the DOM
 	// for each textarea, do the same
 	// print the file
-        print "<html><body><h1>Hello here is some stuff</h1>\n";
+    print "<html><body><h1>Hello here is some stuff</h1>\n";
 	$db = connect_pdo($hostname, $username, $password, $dbname);
+	if ($_SERVER['REQUEST_METHOD'] == 'POST') {   // submit button pressed
+		debug_to_console('got POST'); // why is this going off on page load?
+		submit_form($db, $form_id);
+	}
 	$html = get_html($db, $form_id);
 	$dom = new DOMDocument();
 	$dom -> loadHTML($html);
@@ -100,7 +115,7 @@ function main($hostname, $username, $dbname, $password) {
                 print "updating textarea $name\n";
 		//$node->setAttribute("value", $val);		// pld: this does NOT work
 		// before calling appendChild(), it *might* be worth seeing if there's an existing child we can replace.
-		$node->appendChild( $dom->createTextNode($val)); 
+		$node->appendChild( $dom->createTextNode($val));
 		// pld: use $node->childNodes[0]->textContent to retrieve [??]
 		// pld: maybe $node->firstChild->textContent is better (this is not a function!)
     }
@@ -108,10 +123,6 @@ function main($hostname, $username, $dbname, $password) {
 	$htmlout =  $dom->saveHTML() ;			// generates html of entire document
         print "$htmlout";
 	//debug_to_console($_POST);
-	if ($_SERVER['REQUEST_METHOD'] == 'POST') {   // submit button pressed
-		debug_to_console('got POST'); // why is this going off on page load?
-		submit_form($db,  $textareas);
-	}
 }
 function debug_to_console( $data ) {
     $output = $data;
@@ -131,7 +142,7 @@ function get_value($db, $form_id, $name) {
 	if ($stmt == FALSE) {
 		print("failed to prepare statement: \"$query\"<p>\n");
 		$errarray = $db->errorInfo();
-		$errmsg = $errarray[2];  
+		$errmsg = $errarray[2];
 		print("<b>Prepare error: $errmsg</b><p>\n");	// error would live in $db
 		die();
 	}
@@ -143,11 +154,11 @@ function get_value($db, $form_id, $name) {
 	if ($ret == FALSE) {
 		print("execution of query not successful: \"$insertion\"<p>\n");
 		$errarray = $stmt->errorInfo();
-		$errmsg = $errarray[2];  
+		$errmsg = $errarray[2];
 		print("<b>Execute error: $errmsg</b><p>\n");
 		$fail=1;
 	}
-	
+
 	$col = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
 	if (count($col) == 0) {
 	    return "";
@@ -167,7 +178,7 @@ function get_html($db, $form_id) {
 	if ($stmt == FALSE) {
 		print("failed to prepare statement: \"$query\"<p>\n");
 		$errarray = $db->errorInfo();
-		$errmsg = $errarray[2];  
+		$errmsg = $errarray[2];
 		print("<b>Prepare error: $errmsg</b><p>\n");	// error would live in $db
 		die();
 	}
@@ -179,7 +190,7 @@ function get_html($db, $form_id) {
 	if ($ret == FALSE) {
 		print("execution of query not successful: \"$insertion\"<p>\n");
 		$errarray = $stmt->errorInfo();
-		$errmsg = $errarray[2];  
+		$errmsg = $errarray[2];
 		print("<b>Execute error: $errmsg</b><p>\n");
 		$fail=1;
 	}
